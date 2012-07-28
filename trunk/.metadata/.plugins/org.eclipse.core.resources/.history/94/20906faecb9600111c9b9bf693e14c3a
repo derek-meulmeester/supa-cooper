@@ -1,0 +1,415 @@
+package com.supacooper.screens;
+
+import java.util.LinkedList;
+import java.util.Random;
+
+import com.badlogic.gdx.Files.FileType;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.audio.Sound;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL10;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.Vector2;
+import com.supacooper.SupaCooper;
+import com.supacooper.objects.Enemy;
+import com.supacooper.objects.Player;
+import com.supacooper.objects.Weapon;
+
+public class LevelScreen implements Screen { 
+	
+	public Player player;
+	private Enemy enemy;
+	public LinkedList<Enemy> enemyList;
+	private Weapon weaponInstance;
+	public LinkedList<Weapon> weaponsList;
+	public boolean screenShowing = false;
+	
+	public float x_scale;
+	public float y_scale;
+	public int selectedWeapon;
+	public double TEST = 10000;
+	public double PREV_TEST = -1;
+	
+	private Sound enemyHitSound = Gdx.audio.newSound(Gdx.files.getFileHandle("sounds/hitAlien.mp3", FileType.Internal));
+	
+	private Sound playerVoiceAwYeah = Gdx.audio.newSound(Gdx.files.getFileHandle("sounds/voiceAwYeah.mp3", FileType.Internal));
+	private Sound playerVoiceWoo= Gdx.audio.newSound(Gdx.files.getFileHandle("sounds/VoiceWoo.mp3", FileType.Internal));
+	private Sound playerVoiceYeahLetsRock = Gdx.audio.newSound(Gdx.files.getFileHandle("sounds/voiceYeahLetsRock.mp3", FileType.Internal));
+	private Sound playerVoiceYeahYeah = Gdx.audio.newSound(Gdx.files.getFileHandle("sounds/voiceYeahYeah.mp3", FileType.Internal));
+	
+	private Sound playerVoiceNo = Gdx.audio.newSound(Gdx.files.getFileHandle("sounds/voiceNo.mp3", FileType.Internal));
+	private Sound playerVoiceSad = Gdx.audio.newSound(Gdx.files.getFileHandle("sounds/VoiceSad.mp3", FileType.Internal));
+	private Sound playerVoiceHurt = Gdx.audio.newSound(Gdx.files.getFileHandle("sounds/voiceHurt.mp3", FileType.Internal));
+	private Sound playerVoiceYouCanDoBetter = Gdx.audio.newSound(Gdx.files.getFileHandle("sounds/voiceYouCanDoBetter.mp3", FileType.Internal));
+	
+	private Texture x2Texture = new Texture(Gdx.files.internal(SupaCooper.x2_IMG));
+	private Texture x3Texture = new Texture(Gdx.files.internal(SupaCooper.x3_IMG));
+	private Texture x5Texture = new Texture(Gdx.files.internal(SupaCooper.x5_IMG));
+	private Texture x7Texture = new Texture(Gdx.files.internal(SupaCooper.x7_IMG));
+	private Texture scoreContainer = new Texture(Gdx.files.internal(SupaCooper.scoreContainer));
+	
+	public boolean helpIntro = true;
+	protected boolean hasPulledBack = true;
+	protected boolean hasTappedScreen = false;
+	protected boolean closePullMsg = false;
+	
+	protected Music levelMusic;
+	
+	private SpriteBatch batch;
+	protected Texture backgroundTexture;
+	
+	private int numEnemies;
+	public int killedEnemies = 0;
+	
+	SupaCooper myGame;
+	
+	private BitmapFont font;
+	private BitmapFont font2;
+	private String score;
+	
+	public LevelScreen(SupaCooper newSupaCooper) {
+		
+		myGame = newSupaCooper;
+		this.selectedWeapon = myGame.SelectedWeapon;
+		this.x_scale = myGame.x_scale;
+		this.y_scale = myGame.y_scale;
+		
+		weaponsList = new LinkedList<Weapon>();
+		enemyList = new LinkedList<Enemy>();
+		numEnemies = 0;
+		
+		player = new Player(256, 256, this, this.x_scale, this.y_scale, myGame);
+
+		generateFirstEnemies();
+		
+		batch = new SpriteBatch();
+		
+		setBackground();
+		setAudio();
+		
+		score = "Score: "+myGame.playerScore;
+		font = new BitmapFont();
+		font.setColor(Color.toFloatBits(170,255,170,255));
+		font.setScale(2f, 1.5f);
+		font2 = new BitmapFont();
+		font2.setColor(Color.BLACK);
+		font2.setScale(2f, 1.5f);
+	}
+	
+	public void setAudio()
+	{
+		levelMusic = Gdx.audio.newMusic(Gdx.files.getFileHandle("sounds/levelOne.mp3", FileType.Internal));
+		levelMusic.setVolume(0.2f);
+	}
+	
+	//This method must be overridden by the extending class, otherwise the level map one background gets loaded
+	public void setBackground() {
+		backgroundTexture = new Texture(Gdx.files.internal("images/backgrounds/levelMapOne.png"));
+	}
+	
+	public Vector2 getPlayerPosition() {
+		return new Vector2(player.getPosition());
+	}
+	
+	public void generateFirstEnemies() {
+	}
+	
+	public  void addEnemy(Enemy newEnemy) {
+		enemyList.addFirst(newEnemy);
+		numEnemies++;
+	}
+	
+	@Override
+	public void show() {
+		this.levelMusic.play();
+		this.levelMusic.setVolume(0.4f);
+		this.levelMusic.setLooping(true);
+		this.screenShowing = true;
+		Gdx.input.setInputProcessor(player);
+	}
+	
+	@Override
+	public void render(float delta) {
+		
+		Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT); // This cryptic line clears the screen.
+
+		if(this.killedEnemies == this.numEnemies) {
+			myGame.SelectedWeapon = this.player.weaponSelector.selectedWeapon;
+			myGame.x_scale = this.player.x_scale;
+			myGame.y_scale = this.player.y_scale;
+			this.killedEnemies = 0;
+			this.numEnemies = 0;
+			allEnemiesKilled();
+		}
+		
+		batch.begin();
+		batch.draw(backgroundTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+		
+		score = "Score: "+myGame.playerScore;
+		batch.draw(scoreContainer, 0, Gdx.graphics.getHeight()-64, 280, 64);
+		font2.drawMultiLine(batch, score, 65, (Gdx.graphics.getHeight()-11));
+		font2.drawMultiLine(batch, score, 64, (Gdx.graphics.getHeight()-10));
+        font.drawMultiLine(batch, score, 63, (Gdx.graphics.getHeight()-9));
+        font.drawMultiLine(batch, score, 62, (Gdx.graphics.getHeight()-8));
+        if(myGame.killStreak > 2 && myGame.killStreak < 5) {
+        	myGame.pointMultiplier = 2;
+        	batch.draw(x2Texture, 0, Gdx.graphics.getHeight()-50, 50, 50);
+        }
+		if(myGame.killStreak >= 5 && myGame.killStreak < 8) {
+			myGame.pointMultiplier = 3;   
+			batch.draw(x3Texture, 0, Gdx.graphics.getHeight()-50, 50, 50);
+		}
+		if(myGame.killStreak >= 8 && myGame.killStreak < 12) {
+			myGame.pointMultiplier = 5;
+			batch.draw(x5Texture, 0, Gdx.graphics.getHeight()-50, 50, 50);
+		}
+		if(myGame.killStreak >= 12) {
+			myGame.pointMultiplier = 7;
+			batch.draw(x7Texture, 0, Gdx.graphics.getHeight()-50, 50, 50);
+		}
+		if(myGame.killStreak <= 2) {
+			myGame.pointMultiplier = 1;
+		}
+		batch.end();
+		
+    	player.updatePosition(); 
+    	player.onDraw(); 
+    	if(player.x_scale < 0.26) {
+    		myGame.SelectedWeapon = this.player.weaponSelector.selectedWeapon;
+			myGame.x_scale = 0.41f;
+			myGame.y_scale = 0.41f;
+    		myGame.setGameOverScreen();
+    	}
+    	
+    	checkCollisions();
+    	checkPlayerCollisions();
+    	cleanUpWeapons();
+    	cleanUpEnemies();
+    	drawEnemies();
+    	
+    	extendedRender();
+    	
+	}
+	
+	// Default sets to victory screen. Can be overridden to
+	public void allEnemiesKilled() {
+		myGame.setVictoryScreen();
+	}
+	
+	public void endLevel() {
+		myGame.setVictoryScreen();
+	}
+	
+	//meant to be overridden by extending class
+	public  void extendedRender() {
+		
+	}
+
+	public void drawEnemies() {
+		for(int i=0;i<enemyList.size();i++) {
+			enemy = enemyList.get(i);
+			enemy.onDraw();
+		}
+	}
+	public void createWeapon(int Type) {
+		if(weaponsList.size() < 5) {
+			Weapon weapon = new Weapon(player, player.x_pos, player.y_pos, Type);
+			weapon.onDraw();
+			weaponsList.addFirst(weapon);
+		}
+	}
+	
+	private void cleanUpWeapons() {
+		for(int i=0;i<weaponsList.size();i++) {
+			weaponInstance = weaponsList.get(i);
+    		
+    		if(weaponInstance.x_pos > Gdx.graphics.getWidth() || 
+    				weaponInstance.x_pos < -256) {
+    			weaponInstance.dispose();
+    			weaponsList.remove(i);
+    			player.x_scale -= weaponInstance.weaponDamage;
+    			player.y_scale -= weaponInstance.weaponDamage;
+    			myGame.killStreak = 0;
+    			Random rand = new Random();
+    			int newRand = rand.nextInt(6);
+    			if(newRand == 0)
+    				playerVoiceHurt.play();
+    			if(newRand == 2)
+    				playerVoiceNo.play();
+    			if(newRand == 3)
+    				playerVoiceSad.play();
+    			if(newRand == 5)
+    				playerVoiceYouCanDoBetter.play();
+    			
+    		}else if(weaponInstance.y_pos > Gdx.graphics.getHeight() 
+    				|| weaponInstance.y_pos < -256) {
+    			weaponInstance.dispose();
+    			weaponsList.remove(i);
+    			player.x_scale -= weaponInstance.weaponDamage;
+    			player.y_scale -= weaponInstance.weaponDamage;
+    			myGame.killStreak = 0;
+    			Random rand = new Random();
+    			int newRand = rand.nextInt(6);
+    			if(newRand == 0)
+    				playerVoiceHurt.play();
+    			if(newRand == 2)
+    				playerVoiceNo.play();
+    			if(newRand == 3)
+    				playerVoiceSad.play();
+    			if(newRand == 5)
+    				playerVoiceYouCanDoBetter.play();
+    		}
+    		weaponInstance.onDraw();
+    	}
+	}
+	
+	private void cleanUpEnemies() {
+		for(int i=0;i<enemyList.size();i++) {
+			enemy = enemyList.get(i);
+			if(enemy.isDead()) {
+				enemy.dispose();
+				enemyList.remove(i);
+				this.killedEnemies++;
+			}
+		}
+	}
+	
+	private void checkPlayerCollisions() {
+		for(int i=0;i<enemyList.size();i++) {
+			enemy = enemyList.get(i);
+			
+			float X = ((float)enemy.getCenter().x) - ((float)player.x_center);
+			float Y = ((float)enemy.getCenter().y) - ((float)player.y_center);
+			
+			int Distance = (int)Math.sqrt((X*X)+(Y*Y));
+
+    		if(Distance < (enemy.getRadius()+player.getRadius())) {
+    			if(!enemy.isDying()) {
+	    			enemyHitSound.play();
+	    			player.x_scale -= enemy.enemyDamage;
+	    			player.y_scale -= enemy.enemyDamage;
+    			}
+    		} 
+		}
+	}
+	private void checkCollisions() {
+		for(int j=0;j<enemyList.size();j++) {
+			enemy = enemyList.get(j);
+			if(!enemy.isDying()) {
+					
+				for(int i=0;i<weaponsList.size();i++) {
+					weaponInstance = weaponsList.get(i);
+					if(weaponInstance.onRelease) {
+						double X = enemy.center.x - weaponInstance.center.x;
+						double Y = enemy.center.y - weaponInstance.center.y;
+
+						double Distance = Math.sqrt((X*X)+(Y*Y));
+	
+			    		if(Distance < enemy.getRadius()+weaponInstance.radius) {
+			    			player.x_scale += weaponInstance.weaponDamage*2/3;
+			    			if(player.x_scale>0.8) {
+			    				player.x_scale = 0.8f;
+			    			}
+			    			player.y_scale += weaponInstance.weaponDamage*2/3;
+			    			if(player.y_scale > 0.8) {
+			    				player.y_scale = 0.8f;
+			    			}
+			    			
+			    			Random rand = new Random();
+			    			int newRand = rand.nextInt(6);
+			    			if(newRand == 0)
+			    				playerVoiceAwYeah.play();
+			    			if(newRand == 2)
+			    				playerVoiceWoo.play();
+			    			if(newRand == 3)
+			    				playerVoiceYeahLetsRock.play();
+			    			if(newRand == 5)
+			    				playerVoiceYeahYeah.play();
+			    			
+			    			enemy.lowerHealth(weaponInstance.weaponPower);
+			    			myGame.playerScore += (weaponInstance.pointValue*myGame.pointMultiplier);
+			    			myGame.killStreak++;
+			    			weaponsList.remove(i);
+			    		}
+					}
+				}
+			}
+    	}
+	}
+	@Override
+	public void resize(int width, int height) {
+	}
+
+	@Override
+	public void hide() {
+		myGame.SelectedWeapon = this.player.weaponSelector.selectedWeapon;
+		if(this.player.x_scale < 0.3){
+			myGame.x_scale = 0.41f;
+			myGame.y_scale = 0.41f;
+		}else{
+			myGame.x_scale = this.player.x_scale;
+			myGame.y_scale = this.player.y_scale;
+		}
+		this.levelMusic.dispose();
+		this.screenShowing = false;
+	}
+
+	@Override
+	public void pause() {
+		this.levelMusic.pause();
+	}
+
+	@Override
+	public void resume() {
+		this.levelMusic.play();
+
+	}
+
+	/**
+	 * Dispose of all resources used by or extending the LevelScreen
+	 * When running on mobile this becomes important to reduce RAM
+	 * usage
+	 */
+	@Override
+	public void dispose() {
+//		this.player.dispose();
+//		this.enemyList.clear();
+//		this.weaponsList.clear();
+//		
+//		this.levelMusic.dispose();
+//		this.enemyHitSound.dispose();
+//		this.playerVoiceAwYeah.dispose();
+//		this.playerVoiceHurt.dispose();
+//		this.playerVoiceNo.dispose();
+//		this.playerVoiceSad.dispose();
+//		this.playerVoiceWoo.dispose();
+//		this.playerVoiceYeahLetsRock.dispose();
+//		this.playerVoiceYeahYeah.dispose();
+//		this.playerVoiceYouCanDoBetter.dispose();
+//		if(this.batch != null)
+//			this.batch.dispose();
+//		if(this.backgroundTexture != null)
+//			this.backgroundTexture.dispose();
+	}
+	
+	public void hasTapped() {
+		this.hasTappedScreen = true;
+	}
+	public boolean hasBeenTapped() {
+		return this.hasTappedScreen;
+	}
+	
+	public void preparePullBackHelp() {
+		this.hasPulledBack = false;
+	}
+	
+	public void hasPulledBack() {
+		this.hasPulledBack = true;
+		this.closePullMsg = true;
+	}
+
+}
